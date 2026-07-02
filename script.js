@@ -11,6 +11,12 @@ const state = {
   isAnalysisDirty: true,
   analysis: null,
   individualExclusions: new Set(),
+  exportPresetName: "",
+  exportIncludesIndividualState: false,
+  settingsTransferMessage: "",
+  settingsTransferMessageType: "info",
+  pendingImport: null,
+  pendingIndividualStateRestore: null,
   drag: {
     active: false,
     startIndex: null,
@@ -47,8 +53,17 @@ function bindElements() {
   elements.replacementSummary = document.querySelector("#replacementSummary");
   elements.replacementEnabled = document.querySelector("#replacementEnabled");
   elements.addRuleButton = document.querySelector("#addRuleButton");
+  elements.presetNameInput = document.querySelector("#presetNameInput");
+  elements.includeIndividualState = document.querySelector("#includeIndividualState");
+  elements.importSettingsButton = document.querySelector("#importSettingsButton");
+  elements.exportSettingsButton = document.querySelector("#exportSettingsButton");
+  elements.settingsImportInput = document.querySelector("#settingsImportInput");
+  elements.settingsTransferMessage = document.querySelector("#settingsTransferMessage");
+  elements.settingsImportPreview = document.querySelector("#settingsImportPreview");
   elements.rulesList = document.querySelector("#rulesList");
   elements.copyStatus = document.querySelector("#copyStatus");
+  elements.individualExclusionCount = document.querySelector("#individualExclusionCount");
+  elements.resetIndividualExclusionsButton = document.querySelector("#resetIndividualExclusionsButton");
   elements.copyEmpty = document.querySelector("#copyEmpty");
   elements.copyLines = document.querySelector("#copyLines");
   elements.toast = document.querySelector("#toast");
@@ -84,6 +99,7 @@ function bindEvents() {
   });
 
   elements.fileInput.addEventListener("change", handleFileChange);
+  elements.settingsImportInput.addEventListener("change", handleSettingsImportFileChange);
 
   elements.replacementPanelToggle.addEventListener("click", () => {
     state.isReplacementPanelOpen = !state.isReplacementPanelOpen;
@@ -105,10 +121,27 @@ function bindEvents() {
     renderReplacementSummary();
   });
 
+  elements.presetNameInput.addEventListener("input", (event) => {
+    state.exportPresetName = event.target.value;
+  });
+
+  elements.includeIndividualState.addEventListener("change", (event) => {
+    state.exportIncludesIndividualState = event.target.checked;
+  });
+
+  elements.importSettingsButton.addEventListener("click", () => {
+    elements.settingsImportInput.value = "";
+    elements.settingsImportInput.click();
+  });
+
+  elements.exportSettingsButton.addEventListener("click", handleExportSettings);
+  elements.settingsImportPreview.addEventListener("click", handleImportPreviewClick);
+
   elements.rulesList.addEventListener("input", handleRuleInput);
   elements.rulesList.addEventListener("change", handleRuleChange);
   elements.rulesList.addEventListener("click", handleRuleClick);
 
+  elements.resetIndividualExclusionsButton.addEventListener("click", handleResetIndividualExclusions);
   elements.copyLines.addEventListener("mousedown", handleCopyMouseDown);
   elements.copyLines.addEventListener("mouseover", handleCopyMouseOver);
   elements.copyLines.addEventListener("mousemove", handleCopyMouseMove);
@@ -203,6 +236,231 @@ function handleFileChange(event) {
   reader.readAsText(file, "UTF-8");
 }
 
+async function handleExportSettings() {
+  if (state.replacementRules.length === 0) {
+    setSettingsTransferMessage("置換ルールが登録されていません。", "error");
+    showToast("置換ルールが登録されていません。");
+    return;
+  }
+
+  if (state.replacementRules.some((rule) => rule.source === "")) {
+    setSettingsTransferMessage("置換前が空のルールがあります。入力してから書き出してください。", "error");
+    showToast("置換前が空のルールがあります");
+    return;
+  }
+
+  try {
+    const exportDate = new Date();
+    const exportedAt = ReplacementSettingsIO.formatExportedAt(exportDate);
+    const rules = state.replacementRules.map((rule) => ({
+      source: rule.source,
+      target: rule.target,
+      enabled: rule.enabled,
+      exclusions: parseExclusionInput(rule.exclusionInput),
+    }));
+    const individualState = state.exportIncludesIndividualState
+      ? await createExportedIndividualState()
+      : null;
+    const settings = ReplacementSettingsIO.buildReplacementSettingsExport({
+      name: state.exportPresetName.trim(),
+      exportedAt,
+      rules,
+      individualState,
+    });
+    const fileName = ReplacementSettingsIO.createExportFileName(state.exportPresetName, exportDate);
+    downloadJson(fileName, settings);
+    setSettingsTransferMessage(`${fileName} を書き出しました。`, "info");
+    showToast("設定を書き出しました");
+  } catch {
+    setSettingsTransferMessage("設定を書き出せませんでした。", "error");
+    showToast("設定を書き出せませんでした");
+  }
+}
+
+async function createExportedIndividualState() {
+  ensureAnalysis();
+  const normalizedSourceText = ReplacementSettingsIO.normalizeNewlines(getSourceText());
+  const sourceFingerprint = await ReplacementSettingsIO.createSourceFingerprint(normalizedSourceText);
+  const sourceName =
+    state.activeInputSource === "file" && state.loadedFile?.name ? state.loadedFile.name : undefined;
+  const excludedMatches = collectExportedExcludedMatches();
+  return {
+    sourceFingerprint,
+    ...(sourceName ? { sourceName } : {}),
+    excludedMatches,
+  };
+}
+
+function collectExportedExcludedMatches() {
+  if (!state.analysis) {
+    return [];
+  }
+
+  const excludedMatches = [];
+  Object.values(state.analysis.matchesByLine).forEach((matches) => {
+    matches.forEach((match) => {
+      if (!state.individualExclusions.has(match.id)) {
+        return;
+      }
+      excludedMatches.push({
+        ruleIndex: match.ruleIndex,
+        start: match.globalStart,
+        end: match.globalEnd,
+        original: state.analysis.normalizedSourceText.slice(match.globalStart, match.globalEnd),
+      });
+    });
+  });
+  return excludedMatches;
+}
+
+function downloadJson(fileName, data) {
+  const json = `${JSON.stringify(data, null, 2)}\n`;
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function handleSettingsImportFileChange(event) {
+  const file = event.target.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  try {
+    const fileText = await readFileAsText(file);
+    const result = ReplacementSettingsIO.parseReplacementSettingsJson(fileText);
+    if (!result.ok) {
+      rejectSettingsImport();
+      return;
+    }
+
+    const restoreStatus = await ReplacementSettingsIO.evaluateIndividualStateRestore({
+      settings: result.settings,
+      sourceText: getSourceText(),
+      mode: ReplacementSettingsIO.IMPORT_MODE_REPLACE,
+    });
+    state.pendingImport = {
+      fileName: file.name,
+      settings: result.settings,
+      restoreStatus,
+    };
+    setSettingsTransferMessage("", "info");
+    renderSettingsTransfer();
+  } catch {
+    rejectSettingsImport();
+  } finally {
+    elements.settingsImportInput.value = "";
+  }
+}
+
+function readFileAsText(file) {
+  if (typeof file.text === "function") {
+    return file.text();
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
+    reader.addEventListener("error", reject);
+    reader.readAsText(file, "UTF-8");
+  });
+}
+
+function rejectSettingsImport() {
+  state.pendingImport = null;
+  setSettingsTransferMessage(
+    "設定ファイルを読み込めませんでした。\n対応していない形式か、ファイルが破損しています。",
+    "error",
+  );
+  renderSettingsTransfer();
+}
+
+function handleImportPreviewClick(event) {
+  const button = event.target.closest("[data-import-action]");
+  if (!button) {
+    return;
+  }
+
+  const action = button.dataset.importAction;
+  if (action === "cancel") {
+    state.pendingImport = null;
+    renderSettingsTransfer();
+    return;
+  }
+  if (action === "replace" || action === "append") {
+    applyPendingImport(action);
+  }
+}
+
+async function applyPendingImport(mode) {
+  if (!state.pendingImport) {
+    return;
+  }
+
+  const pendingImport = state.pendingImport;
+  const restoreStatus = await ReplacementSettingsIO.evaluateIndividualStateRestore({
+    settings: pendingImport.settings,
+    sourceText: getSourceText(),
+    mode,
+  });
+  const result = ReplacementSettingsIO.applyImportedRules({
+    currentRules: state.replacementRules,
+    importedRules: pendingImport.settings.rules,
+    mode,
+    createId,
+  });
+
+  state.replacementRules = result.rules;
+  if (mode === ReplacementSettingsIO.IMPORT_MODE_REPLACE) {
+    state.exportPresetName = pendingImport.settings.name;
+  }
+  state.pendingImport = null;
+  invalidateAnalysis({ resetExclusions: true, resetPendingRestore: false });
+  state.pendingIndividualStateRestore = restoreStatus.canRestore
+    ? pendingImport.settings.individualState
+    : null;
+  saveSettings();
+  render();
+
+  if (mode === ReplacementSettingsIO.IMPORT_MODE_APPEND) {
+    const message = `${result.addedCount}件を追加し、重複した${result.skippedCount}件をスキップしました。${
+      pendingImport.settings.individualState ? "\n個別除外状態は追加モードでは復元されません。" : ""
+    }`;
+    setSettingsTransferMessage(message, "info");
+    showToast(`${result.addedCount}件を追加しました`);
+    renderSettingsTransfer();
+    return;
+  }
+
+  if (pendingImport.settings.individualState && !restoreStatus.canRestore) {
+    setSettingsTransferMessage(
+      "置換ルールは読み込みましたが、\n個別除外状態は現在の本文と一致しないため復元できませんでした。",
+      "info",
+    );
+    showToast("置換ルールを読み込みました");
+    renderSettingsTransfer();
+    return;
+  }
+
+  const message = pendingImport.settings.individualState
+    ? "置換ルールを読み込みました。\n個別除外状態はコピー画面で復元されます。"
+    : "置換ルールを読み込みました。";
+  setSettingsTransferMessage(message, "info");
+  showToast("置換ルールを読み込みました");
+  renderSettingsTransfer();
+}
+
+function setSettingsTransferMessage(message, type) {
+  state.settingsTransferMessage = message;
+  state.settingsTransferMessageType = type;
+}
+
 function handleRuleInput(event) {
   const field = event.target.dataset.ruleField;
   const id = event.target.dataset.ruleId;
@@ -260,6 +518,7 @@ function render() {
   renderSourceMeta();
   renderReplacementPanelState();
   renderReplacementSummary();
+  renderSettingsTransfer();
   renderRules();
   renderCopyPanel();
 }
@@ -315,6 +574,80 @@ function renderReplacementSummary() {
   elements.replacementSummary.textContent = `${state.replacementRules.length}件 ${
     state.replacementEnabled ? "ON" : "OFF"
   }`;
+}
+
+function renderSettingsTransfer() {
+  if (elements.presetNameInput.value !== state.exportPresetName) {
+    elements.presetNameInput.value = state.exportPresetName;
+  }
+  elements.includeIndividualState.checked = state.exportIncludesIndividualState;
+  elements.settingsTransferMessage.textContent = state.settingsTransferMessage;
+  elements.settingsTransferMessage.classList.toggle(
+    "is-error",
+    state.settingsTransferMessageType === "error",
+  );
+  renderImportPreview();
+}
+
+function renderImportPreview() {
+  elements.settingsImportPreview.textContent = "";
+  elements.settingsImportPreview.classList.toggle("is-hidden", !state.pendingImport);
+  if (!state.pendingImport) {
+    return;
+  }
+
+  const { settings, restoreStatus } = state.pendingImport;
+  const enabledCount = settings.rules.filter((rule) => rule.enabled).length;
+  const disabledCount = settings.rules.length - enabledCount;
+  const individualCount = settings.individualState?.excludedMatches.length ?? 0;
+
+  const title = document.createElement("p");
+  title.className = "settings-import-preview-title";
+  title.textContent = settings.name || "名称未設定";
+
+  const details = document.createElement("p");
+  details.className = "settings-import-preview-details";
+  details.append(
+    createInlineDetail(`置換ルール：${settings.rules.length}件`),
+    createInlineDetail(`有効：${enabledCount}件`),
+    createInlineDetail(`無効：${disabledCount}件`),
+    createInlineDetail(`個別除外状態：${individualCount}件`),
+  );
+
+  const status = document.createElement("p");
+  status.className = "settings-import-preview-status";
+  if (!settings.individualState) {
+    status.textContent = "個別除外状態は含まれていません。";
+  } else if (restoreStatus.matchesSource) {
+    status.textContent = "現在の本文と一致しました。\n個別除外状態も復元できます。";
+  } else {
+    status.textContent = "現在の本文と一致しません。\n個別除外状態は復元されません。";
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "settings-import-actions";
+  actions.append(
+    createImportActionButton("replace", "現在の設定と置き換える", "primary-button"),
+    createImportActionButton("append", "現在の設定に追加する", "secondary-button"),
+    createImportActionButton("cancel", "キャンセル", "secondary-button"),
+  );
+
+  elements.settingsImportPreview.append(title, details, status, actions);
+}
+
+function createInlineDetail(text) {
+  const item = document.createElement("span");
+  item.textContent = text;
+  return item;
+}
+
+function createImportActionButton(action, label, className) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.dataset.importAction = action;
+  button.textContent = label;
+  return button;
 }
 
 function renderRules() {
@@ -416,6 +749,7 @@ function createTextField({ label, value, placeholder, ruleId, field, singleLine 
 }
 
 function renderCopyPanel() {
+  renderIndividualExclusionSummary();
   if (state.activeMainTab !== "copy") {
     return;
   }
@@ -440,6 +774,12 @@ function renderCopyPanel() {
     elements.copyLines.append(createLineElement(line, index));
   });
   updateDragSelectionClasses();
+}
+
+function renderIndividualExclusionSummary() {
+  const count = state.individualExclusions.size;
+  elements.individualExclusionCount.textContent = `${count}件`;
+  elements.resetIndividualExclusionsButton.disabled = count === 0;
 }
 
 function createLineElement(line, index) {
@@ -593,21 +933,19 @@ function ensureAnalysis() {
 
   state.analysis = analyzeText(sourceText);
   state.isAnalysisDirty = false;
+  applyPendingIndividualStateRestore();
 }
 
 function analyzeText(sourceText) {
-  const lines = splitLines(sourceText).map((originalText, index) => ({
-    id: `line-${index}`,
-    lineNumber: index + 1,
-    originalText,
-  }));
+  const normalizedSourceText = ReplacementSettingsIO.normalizeNewlines(sourceText);
+  const lines = createAnalysisLines(normalizedSourceText);
   const matchesByLine = {};
 
   if (!state.replacementEnabled) {
     lines.forEach((line) => {
       matchesByLine[line.id] = [];
     });
-    return { sourceText, lines, matchesByLine };
+    return { sourceText, normalizedSourceText, lines, matchesByLine };
   }
 
   const activeRules = state.replacementRules
@@ -622,7 +960,25 @@ function analyzeText(sourceText) {
     matchesByLine[line.id] = analyzeLine(line, activeRules);
   });
 
-  return { sourceText, lines, matchesByLine };
+  return { sourceText, normalizedSourceText, lines, matchesByLine };
+}
+
+function createAnalysisLines(normalizedSourceText) {
+  let offset = 0;
+  return normalizedSourceText.split("\n").map((originalText, index, allLines) => {
+    const line = {
+      id: `line-${index}`,
+      lineNumber: index + 1,
+      originalText,
+      startOffset: offset,
+      endOffset: offset + originalText.length,
+    };
+    offset += originalText.length;
+    if (index < allLines.length - 1) {
+      offset += 1;
+    }
+    return line;
+  });
 }
 
 function analyzeLine(line, rules) {
@@ -639,6 +995,8 @@ function analyzeLine(line, rules) {
           ruleIndex: rule.index,
           start,
           end,
+          globalStart: line.startOffset + start,
+          globalEnd: line.startOffset + end,
           length: rule.source.length,
         });
       }
@@ -666,14 +1024,30 @@ function analyzeLine(line, rules) {
       id: `match-${line.id}-${candidate.start}-${candidate.end}-${candidate.ruleId}`,
       lineId: line.id,
       ruleId: candidate.ruleId,
+      ruleIndex: candidate.ruleIndex,
       start: candidate.start,
       end: candidate.end,
+      globalStart: candidate.globalStart,
+      globalEnd: candidate.globalEnd,
       excluded: false,
     });
     cursor = candidate.end;
   });
 
   return selected;
+}
+
+function applyPendingIndividualStateRestore() {
+  if (!state.pendingIndividualStateRestore || !state.analysis) {
+    return;
+  }
+
+  const result = ReplacementSettingsIO.restoreExcludedMatchIds({
+    individualState: state.pendingIndividualStateRestore,
+    analysis: state.analysis,
+  });
+  state.individualExclusions = result.ids;
+  state.pendingIndividualStateRestore = null;
 }
 
 function isInsideExclusion(text, start, end, exclusions) {
@@ -742,6 +1116,23 @@ function toggleIndividualExclusion(matchId) {
   renderCopyPanel();
 }
 
+function handleResetIndividualExclusions() {
+  const count = state.individualExclusions.size;
+  if (count === 0) {
+    return;
+  }
+  const confirmed = window.confirm(
+    `個別に除外した${count}件を、すべて置換対象へ戻します。\nこの操作は元に戻せません。`,
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  const restoredCount = ReplacementSettingsIO.clearIndividualExclusionIds(state.individualExclusions);
+  renderCopyPanel();
+  showToast(`${restoredCount}件を置換対象に戻しました。`);
+}
+
 function copySingleLine(index) {
   const line = state.analysis?.lines[index];
   if (!line) {
@@ -807,11 +1198,14 @@ function showToast(message) {
   }, 1800);
 }
 
-function invalidateAnalysis({ resetExclusions }) {
+function invalidateAnalysis({ resetExclusions, resetPendingRestore = resetExclusions }) {
   state.isAnalysisDirty = true;
   state.analysis = null;
   if (resetExclusions) {
     state.individualExclusions.clear();
+  }
+  if (resetPendingRestore) {
+    state.pendingIndividualStateRestore = null;
   }
 }
 

@@ -205,6 +205,7 @@ main {
 .scenario-textarea,
 .rule-input,
 .exclusion-input,
+.preset-name-field input,
 .file-preview {
   width: 100%;
   border: 1px solid var(--line);
@@ -222,7 +223,8 @@ main {
 
 .scenario-textarea:focus,
 .rule-input:focus,
-.exclusion-input:focus {
+.exclusion-input:focus,
+.preset-name-field input:focus {
   border-color: var(--accent);
   outline: 3px solid rgba(8, 127, 91, 0.18);
 }
@@ -301,7 +303,8 @@ main {
   margin-bottom: 14px;
 }
 
-.switch-label {
+.switch-label,
+.check-label {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -310,13 +313,15 @@ main {
 }
 
 .switch-label input,
-.rule-enabled input {
+.rule-enabled input,
+.check-label input {
   width: 18px;
   height: 18px;
   accent-color: var(--accent);
 }
 
 .primary-button,
+.secondary-button,
 .danger-button {
   min-height: 38px;
   border-radius: 8px;
@@ -330,9 +335,128 @@ main {
   color: #ffffff;
 }
 
+.secondary-button {
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+
 .primary-button:hover,
 .file-picker:hover {
   background: var(--accent-strong);
+}
+
+.secondary-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.settings-transfer {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
+.settings-transfer-main,
+.settings-transfer-actions {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.preset-name-field {
+  display: grid;
+  flex: 1 1 280px;
+  gap: 6px;
+}
+
+.preset-name-field span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.preset-name-field input {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.export-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.settings-transfer-actions {
+  justify-content: end;
+}
+
+.settings-transfer-message {
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.settings-transfer-message.is-error {
+  color: var(--danger);
+}
+
+.settings-import-preview {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.settings-import-preview-title {
+  margin: 0;
+  font-weight: 900;
+}
+
+.settings-import-preview-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.settings-import-preview-status {
+  margin: 0;
+  color: var(--text);
+  font-weight: 800;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.settings-import-actions {
+  display: flex;
+  justify-content: end;
+  gap: 8px;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 .rules-list {
@@ -406,6 +530,16 @@ main {
 .copy-toolbar {
   padding: 16px 18px;
   background: var(--surface-muted);
+}
+
+.individual-exclusion-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-weight: 800;
 }
 
 .copy-empty {

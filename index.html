@@ -1,1 +1,179 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TRPGシナリオ コピー支援</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">TRPG Scenario Copy Helper</p>
+          <h1>TRPGシナリオ コピー支援</h1>
+        </div>
+        <span class="privacy-badge">ブラウザ内で処理</span>
+      </header>
 
+      <nav class="main-tabs" aria-label="メインタブ">
+        <button class="main-tab is-active" type="button" data-main-tab="input">
+          入力・設定
+        </button>
+        <button class="main-tab" type="button" data-main-tab="copy">
+          コピー
+        </button>
+      </nav>
+
+      <main>
+        <section class="tab-panel" id="inputPanel">
+          <section class="workspace-panel">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Source</p>
+                <h2>元テキスト</h2>
+              </div>
+              <span class="source-count" id="sourceCount">0文字 / 0行</span>
+            </div>
+
+            <div class="segmented-control" aria-label="元テキスト入力方式">
+              <button
+                class="segment-button is-active"
+                type="button"
+                data-input-source="textarea"
+              >
+                直接入力
+              </button>
+              <button
+                class="segment-button"
+                type="button"
+                data-input-source="file"
+              >
+                ファイル読込
+              </button>
+            </div>
+
+            <div class="source-pane" id="textareaPane">
+              <label class="field-label" for="scenarioText">本文</label>
+              <textarea
+                id="scenarioText"
+                class="scenario-textarea"
+                spellcheck="false"
+                placeholder="シナリオ本文を貼り付け"
+              ></textarea>
+            </div>
+
+            <div class="source-pane is-hidden" id="filePane">
+              <label class="file-picker">
+                <input id="fileInput" type="file" accept=".txt,text/plain" />
+                <span>UTF-8の.txtファイルを選択</span>
+              </label>
+              <div class="file-meta" id="fileMeta">ファイル未選択</div>
+              <pre class="file-preview" id="filePreview"></pre>
+            </div>
+          </section>
+
+          <section class="replacement-shell">
+            <button
+              class="replacement-toggle"
+              id="replacementPanelToggle"
+              type="button"
+              aria-expanded="false"
+            >
+              <span class="panel-caret" id="replacementCaret">▶</span>
+              <span>置換設定（ココフォリア等の変数）</span>
+              <span class="replacement-summary" id="replacementSummary">0件 ON</span>
+            </button>
+
+            <div class="replacement-panel is-hidden" id="replacementPanel">
+              <div class="replacement-toolbar">
+                <label class="switch-label">
+                  <span>置換機能を使用する</span>
+                  <input id="replacementEnabled" type="checkbox" />
+                </label>
+                <button class="primary-button" id="addRuleButton" type="button">
+                  ルール追加
+                </button>
+              </div>
+
+              <section class="settings-transfer" aria-label="置換設定の読み書き">
+                <div class="settings-transfer-main">
+                  <label class="preset-name-field">
+                    <span>プリセット名</span>
+                    <input
+                      id="presetNameInput"
+                      type="text"
+                      placeholder="例：基本変数設定"
+                    />
+                  </label>
+                  <div class="export-options" aria-label="書き出し対象">
+                    <label class="check-label">
+                      <input type="checkbox" checked disabled />
+                      <span>置換ルール</span>
+                    </label>
+                    <label class="check-label">
+                      <input id="includeIndividualState" type="checkbox" />
+                      <span>個別除外状態を含める</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="settings-transfer-actions">
+                  <button class="secondary-button" id="importSettingsButton" type="button">
+                    設定を読み込む
+                  </button>
+                  <button class="primary-button" id="exportSettingsButton" type="button">
+                    設定を書き出す
+                  </button>
+                  <input
+                    id="settingsImportInput"
+                    class="visually-hidden"
+                    type="file"
+                    accept=".json,application/json"
+                  />
+                </div>
+                <div class="settings-transfer-message" id="settingsTransferMessage"></div>
+                <div
+                  class="settings-import-preview is-hidden"
+                  id="settingsImportPreview"
+                ></div>
+              </section>
+
+              <div class="rules-list" id="rulesList"></div>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel is-hidden" id="copyPanel">
+          <section class="copy-toolbar">
+            <div>
+              <p class="section-kicker">Copy</p>
+              <h2>コピー</h2>
+            </div>
+            <span class="copy-status" id="copyStatus">0行</span>
+          </section>
+          <div class="individual-exclusion-bar">
+            <span>個別除外：<span id="individualExclusionCount">0件</span></span>
+            <button
+              class="secondary-button"
+              id="resetIndividualExclusionsButton"
+              type="button"
+              disabled
+            >
+              すべて置換対象に戻す
+            </button>
+          </div>
+          <div class="copy-empty" id="copyEmpty">
+            元テキストが入力されていません。<br />
+            「入力・設定」からテキストを入力するか、テキストファイルを読み込んでください。
+          </div>
+          <div class="copy-lines is-hidden" id="copyLines" aria-label="コピー対象行"></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="./replacementSettings.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>
