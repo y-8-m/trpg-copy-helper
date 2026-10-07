@@ -326,25 +326,47 @@ main {
 }
 
 .settings-transfer {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 14px;
-  padding: 16px 0;
+  margin-top: 20px;
+  padding: 14px 0;
   border-top: 1px solid var(--line);
 }
 
-.settings-transfer-main,
-.settings-transfer-actions {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
+.settings-transfer > summary {
+  color: var(--muted);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.settings-transfer-block {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 20px 0;
+}
+
+.settings-transfer-block + .settings-transfer-block {
+  border-top: 1px solid var(--line);
+}
+
+.settings-transfer-block h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.settings-transfer-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.settings-transfer-block > .settings-import-preview {
+  width: 100%;
 }
 
 .preset-name-field {
   display: grid;
-  flex: 1 1 280px;
+  width: min(100%, 360px);
   gap: 6px;
 }
 
@@ -360,14 +382,14 @@ main {
 }
 
 .export-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding-bottom: 8px;
+  display: grid;
+  gap: 4px;
 }
 
-.settings-transfer-actions {
-  justify-content: end;
+.export-options small {
+  padding-left: 26px;
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .settings-transfer-message {
@@ -715,19 +737,6 @@ button:focus-visible,
 
   .tab-panel {
     padding: 18px;
-  }
-
-  .settings-transfer-main {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .preset-name-field {
-    flex-basis: auto;
-  }
-
-  .export-options {
-    padding-bottom: 0;
   }
 }
 

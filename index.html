@@ -99,33 +99,15 @@
                 </button>
               </div>
 
-              <section class="settings-transfer" aria-label="置換設定の読み書き">
-                <div class="settings-transfer-main">
-                  <label class="preset-name-field">
-                    <span>プリセット名</span>
-                    <input
-                      id="presetNameInput"
-                      type="text"
-                      placeholder="例：基本変数設定"
-                    />
-                  </label>
-                  <div class="export-options" aria-label="書き出し対象">
-                    <label class="check-label">
-                      <input type="checkbox" checked disabled />
-                      <span>置換ルール</span>
-                    </label>
-                    <label class="check-label">
-                      <input id="includeIndividualState" type="checkbox" />
-                      <span>この本文の置換しない箇所・改行編集も保存</span>
-                    </label>
-                  </div>
-                </div>
-                <div class="settings-transfer-actions">
+              <div class="rules-list" id="rulesList"></div>
+
+              <details class="settings-transfer">
+                <summary>設定の保存・読み込み</summary>
+                <section class="settings-transfer-block" aria-labelledby="settingsImportHeading">
+                  <h3 id="settingsImportHeading">読み込み</h3>
+                  <p class="settings-transfer-description">保存済みの設定ファイルを読み込みます</p>
                   <button class="secondary-button" id="importSettingsButton" type="button">
-                    設定を読み込む
-                  </button>
-                  <button class="secondary-button" id="exportSettingsButton" type="button">
-                    設定を書き出す
+                    設定ファイルを読み込む
                   </button>
                   <input
                     id="settingsImportInput"
@@ -133,15 +115,35 @@
                     type="file"
                     accept=".json,application/json"
                   />
-                </div>
+                  <div
+                    class="settings-import-preview is-hidden"
+                    id="settingsImportPreview"
+                  ></div>
+                </section>
+                <section class="settings-transfer-block" aria-labelledby="settingsExportHeading">
+                  <h3 id="settingsExportHeading">書き出し</h3>
+                  <p class="settings-transfer-description">現在の置換設定をファイルとして保存します</p>
+                  <label class="preset-name-field">
+                    <span>プリセット名（任意）</span>
+                    <input
+                      id="presetNameInput"
+                      type="text"
+                      placeholder="例：基本変数設定"
+                    />
+                  </label>
+                  <div class="export-options">
+                    <label class="check-label">
+                      <input id="includeIndividualState" type="checkbox" aria-describedby="individualStateDescription" />
+                      <span>この本文での編集状態も保存</span>
+                    </label>
+                    <small id="individualStateDescription">置換しない箇所・改行編集を含みます</small>
+                  </div>
+                  <button class="secondary-button" id="exportSettingsButton" type="button">
+                    設定を書き出す
+                  </button>
+                </section>
                 <div class="settings-transfer-message" id="settingsTransferMessage"></div>
-                <div
-                  class="settings-import-preview is-hidden"
-                  id="settingsImportPreview"
-                ></div>
-              </section>
-
-              <div class="rules-list" id="rulesList"></div>
+              </details>
             </div>
           </section>
         </section>
@@ -213,8 +215,8 @@
       </section>
       <section>
         <h3>設定を保存・読み込み</h3>
-        <p>「文字列の置換」の「設定を書き出す」で置換ルールをJSONファイルに保存し、「設定を読み込む」で再利用できます。</p>
-        <p>「この本文の置換しない箇所・改行編集も保存」を選ぶと、コピー画面での調整も含めて保存します。同じ本文を入力して、「現在の設定と置き換える」で読み込むと復元できます。「現在の設定に追加する」では復元されません。本文そのものはJSONに保存されません。</p>
+        <p>「文字列の置換」の「設定の保存・読み込み」を開き、「設定を書き出す」で置換ルールをJSONファイルに保存し、「設定ファイルを読み込む」で再利用できます。</p>
+        <p>「この本文での編集状態も保存」を選ぶと、コピー画面での調整も含めて保存します。同じ本文を入力して、「現在の設定と置き換える」で読み込むと復元できます。「現在の設定に追加する」では復元されません。本文そのものはJSONに保存されません。</p>
       </section>
     </dialog>
 
