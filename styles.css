@@ -609,16 +609,18 @@ main {
   display: inline;
   padding: 1px 3px;
   border-radius: 4px;
-  background: var(--accent-soft);
+  background: #bfead9;
   color: #063d2e;
+  border-bottom: 2px solid #087f5b;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   cursor: pointer;
 }
 
 .replacement-chip.is-excluded {
-  background: var(--warn-soft);
-  color: #703a00;
+  background: #f3f1e8;
+  color: #7a6a54;
+  border-bottom: 2px dashed #b65f00;
 }
 
 .replacement-chip:hover {
