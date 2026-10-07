@@ -80,6 +80,11 @@ function bindElements() {
 }
 
 function bindEvents() {
+  const helpDialog = document.querySelector("#helpDialog");
+  document.querySelector("#helpButton").addEventListener("click", () => {
+    closeBreakMenu();
+    helpDialog.showModal();
+  });
   elements.copyFontDecrease.addEventListener("click", () => changeCopyFontSize(-1));
   elements.copyFontIncrease.addEventListener("click", () => changeCopyFontSize(1));
   elements.mainTabs.forEach((button) => {
@@ -483,7 +488,7 @@ async function applyPendingImport(mode) {
 
   if (mode === ReplacementSettingsIO.IMPORT_MODE_APPEND) {
     const message = `${result.addedCount}件を追加し、重複した${result.skippedCount}件をスキップしました。${
-      pendingImport.settings.individualState ? "\n本文固有状態（個別除外・改行編集）は追加モードでは復元されません。" : ""
+      pendingImport.settings.individualState ? "\nこの本文の置換しない箇所・改行編集は追加モードでは復元されません。" : ""
     }`;
     setSettingsTransferMessage(message, "info");
     showToast(`${result.addedCount}件を追加しました`);
@@ -493,7 +498,7 @@ async function applyPendingImport(mode) {
 
   if (pendingImport.settings.individualState && !restoreStatus.canRestore) {
     setSettingsTransferMessage(
-      "置換ルールは読み込みましたが、\n本文固有状態（個別除外・改行編集）は現在の本文と一致しないため復元できませんでした。",
+      "置換ルールは読み込みましたが、\nこの本文の置換しない箇所・改行編集は現在の本文と一致しないため復元できませんでした。",
       "info",
     );
     showToast("置換ルールを読み込みました");
@@ -502,7 +507,7 @@ async function applyPendingImport(mode) {
   }
 
   const message = pendingImport.settings.individualState
-    ? "置換ルールを読み込みました。\n本文固有状態（個別除外・改行編集）はコピー画面で復元されます。"
+    ? "置換ルールを読み込みました。\nこの本文の置換しない箇所・改行編集はコピー画面で復元されます。"
     : "置換ルールを読み込みました。";
   setSettingsTransferMessage(message, "info");
   showToast("置換ルールを読み込みました");
@@ -664,18 +669,18 @@ function renderImportPreview() {
     createInlineDetail(`置換ルール：${settings.rules.length}件`),
     createInlineDetail(`有効：${enabledCount}件`),
     createInlineDetail(`無効：${disabledCount}件`),
-    createInlineDetail(`個別除外状態：${individualCount}件`),
+    createInlineDetail(`置換しない箇所：${individualCount}件`),
     createInlineDetail(`改行追加：${settings.individualState?.insertedBreaks?.length ?? 0}件 / 改行削除：${settings.individualState?.removedLineBreaks?.length ?? 0}件`),
   );
 
   const status = document.createElement("p");
   status.className = "settings-import-preview-status";
   if (!settings.individualState) {
-    status.textContent = "本文固有状態（個別除外・改行編集）は含まれていません。";
+    status.textContent = "この本文の置換しない箇所・改行編集は含まれていません。";
   } else if (restoreStatus.matchesSource) {
-    status.textContent = "現在の本文と一致しました。\n本文固有状態（個別除外・改行編集）も復元できます。";
+    status.textContent = "現在の本文と一致しました。\nこの本文の置換しない箇所・改行編集も復元できます。";
   } else {
-    status.textContent = "現在の本文と一致しません。\n本文固有状態（個別除外・改行編集）は復元されません。";
+    status.textContent = "現在の本文と一致しません。\nこの本文の置換しない箇所・改行編集は復元されません。";
   }
 
   const actions = document.createElement("div");

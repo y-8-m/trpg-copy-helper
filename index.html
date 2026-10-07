@@ -12,7 +12,10 @@
         <div>
           <h1>TRPGシナリオ コピー支援</h1>
         </div>
-        <span class="privacy-badge">ブラウザ内で処理</span>
+        <div class="header-actions">
+          <span class="privacy-badge">ブラウザ内で処理</span>
+          <button class="help-button" id="helpButton" type="button" aria-haspopup="dialog" aria-controls="helpDialog"><span aria-hidden="true">?</span> 使い方</button>
+        </div>
       </header>
 
       <nav class="main-tabs" aria-label="メインタブ">
@@ -79,7 +82,9 @@
               aria-expanded="false"
             >
               <span class="panel-caret" id="replacementCaret">▶</span>
-              <span>置換設定（ココフォリア等の変数）</span>
+              <span class="replacement-heading">文字列の置換
+                <span class="replacement-description">PC名などを {PC} のような変数形式に変換できます</span>
+              </span>
               <span class="replacement-summary" id="replacementSummary">0件 ON</span>
             </button>
 
@@ -111,7 +116,7 @@
                     </label>
                     <label class="check-label">
                       <input id="includeIndividualState" type="checkbox" />
-                      <span>本文固有状態（個別除外・改行編集）を含める</span>
+                      <span>この本文の置換しない箇所・改行編集も保存</span>
                     </label>
                   </div>
                 </div>
@@ -155,16 +160,23 @@
               <span class="copy-status" id="copyStatus">0行</span>
             </div>
           </section>
-          <div class="individual-exclusion-bar">
-            <span>個別除外：<span id="individualExclusionCount">0件</span></span>
-            <button
-              class="secondary-button"
-              id="resetIndividualExclusionsButton"
-              type="button"
-              disabled
-            >
-              すべて置換対象に戻す
-            </button>
+          <p class="copy-guide">行クリックでコピー / ドラッグで複数行コピー / 右クリックで改行追加</p>
+          <div class="copy-details">
+            <div class="replacement-legend" aria-label="置換ハイライトの凡例">
+              <span title="置換対象（クリックで除外）"><i class="legend-swatch" aria-hidden="true"></i>置換対象</span>
+              <span title="置換しない箇所（クリックで戻す）"><i class="legend-swatch is-excluded" aria-hidden="true"></i>置換しない箇所</span>
+            </div>
+            <div class="individual-exclusion-bar">
+              <span>置換しない箇所：<span id="individualExclusionCount">0件</span></span>
+              <button
+                class="secondary-button"
+                id="resetIndividualExclusionsButton"
+                type="button"
+                disabled
+              >
+                すべて置換対象に戻す
+              </button>
+            </div>
           </div>
           <div class="copy-empty" id="copyEmpty">
             元テキストが入力されていません。<br />
@@ -174,6 +186,37 @@
         </section>
       </main>
     </div>
+
+    <dialog class="help-dialog" id="helpDialog" aria-labelledby="helpTitle">
+      <div class="help-heading">
+        <h2 id="helpTitle">使い方</h2>
+        <form method="dialog"><button class="secondary-button" autofocus>閉じる</button></form>
+      </div>
+      <section>
+        <h3>まずは本文を入力</h3>
+        <p>「入力・設定」で本文を貼り付けるか、UTF-8の.txtファイルを読み込み、「コピー」タブへ移動します。</p>
+      </section>
+      <section>
+        <h3>行を選んでコピー</h3>
+        <p>行をクリックすると1行をコピーします。複数行は、開始行から終了行までドラッグし、マウスを離すとまとめてコピーできます。</p>
+        <p>色の付いた文字は置換の切り替え用です。その行をコピーするときは行番号や色の付いていない部分から操作します。</p>
+      </section>
+      <section>
+        <h3>改行を調整</h3>
+        <p>本文の分割したい位置を右クリックし、「ここで改行」を選びます。行間の細い領域をダブルクリックすると改行を削除して前後の行をつなげます。</p>
+        <p>改行編集はコピー画面に反映され、元テキストは変わりません。本文を変更すると改行編集はリセットされます。</p>
+      </section>
+      <section>
+        <h3>文字列を置換・一部だけ除外</h3>
+        <p>「入力・設定」の「文字列の置換」を開き、置換機能を有効にしてルールを追加します。PC名などを {PC} のような文字列に変換できます。</p>
+        <p>コピー画面の緑色のハイライトをクリックすると、その箇所だけ置換しません。ベージュ色のハイライトをクリックすると置換対象に戻ります。「すべて置換対象に戻す」でまとめて戻せます。</p>
+      </section>
+      <section>
+        <h3>設定を保存・読み込み</h3>
+        <p>「文字列の置換」の「設定を書き出す」で置換ルールをJSONファイルに保存し、「設定を読み込む」で再利用できます。</p>
+        <p>「この本文の置換しない箇所・改行編集も保存」を選ぶと、コピー画面での調整も含めて保存します。同じ本文を入力して、「現在の設定と置き換える」で読み込むと復元できます。「現在の設定に追加する」では復元されません。本文そのものはJSONに保存されません。</p>
+      </section>
+    </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

@@ -492,8 +492,7 @@ main {
 }
 
 .copy-toolbar {
-  padding: 0 0 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 0;
   flex-wrap: wrap;
 }
 
@@ -525,7 +524,7 @@ main {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 10px;
+  flex-wrap: wrap;
   font-size: 12px;
   color: var(--muted);
   font-weight: 500;
@@ -731,3 +730,85 @@ button:focus-visible,
     padding-bottom: 0;
   }
 }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.help-button {
+  padding: 5px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.help-button:hover { color: var(--accent-strong); }
+
+.replacement-heading { padding: 12px 0; }
+.replacement-description {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.copy-guide {
+  margin: 10px 0 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.copy-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 10px;
+}
+
+.replacement-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.replacement-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--highlight);
+  border-bottom: 2px solid var(--accent);
+}
+.legend-swatch.is-excluded {
+  background: var(--excluded);
+  border-bottom: 2px dashed var(--warn);
+}
+
+.help-dialog {
+  width: min(620px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 24px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+.help-dialog::backdrop { background: rgb(0 0 0 / 35%); }
+.help-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.help-dialog h3 { margin: 22px 0 8px; font-size: 14px; }
+.help-dialog p { margin: 8px 0 0; line-height: 1.8; }
