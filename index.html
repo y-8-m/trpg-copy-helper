@@ -149,7 +149,14 @@
               <p class="section-kicker">Copy</p>
               <h2>コピー</h2>
             </div>
-            <span class="copy-status" id="copyStatus">0行</span>
+            <div class="copy-toolbar-actions">
+              <div class="copy-font-control" role="group" aria-label="コピー本文の文字サイズ">
+                <button class="secondary-button" id="copyFontDecrease" type="button" aria-label="本文の文字サイズを小さくする">A−</button>
+                <output id="copyFontSize" aria-live="polite">16px</output>
+                <button class="secondary-button" id="copyFontIncrease" type="button" aria-label="本文の文字サイズを大きくする">A+</button>
+              </div>
+              <span class="copy-status" id="copyStatus">0行</span>
+            </div>
           </section>
           <div class="individual-exclusion-bar">
             <span>個別除外：<span id="individualExclusionCount">0件</span></span>

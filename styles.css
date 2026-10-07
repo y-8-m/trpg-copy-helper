@@ -530,6 +530,30 @@ main {
 .copy-toolbar {
   padding: 16px 18px;
   background: var(--surface-muted);
+  flex-wrap: wrap;
+}
+
+.copy-toolbar-actions,
+.copy-font-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-toolbar-actions {
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.copy-font-control output {
+  min-width: 4ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.copy-font-control button {
+  min-height: 32px;
+  padding: 0 8px;
 }
 
 .individual-exclusion-bar {
@@ -554,6 +578,7 @@ main {
 }
 
 .copy-lines {
+  --copy-font-size: 16px;
   margin-top: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -594,6 +619,7 @@ main {
 }
 
 .line-content {
+  font-size: var(--copy-font-size);
   min-width: 0;
   padding: 4px 12px;
   line-height: 1.45;

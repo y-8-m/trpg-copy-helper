@@ -1,6 +1,9 @@
 const STORAGE_KEY = "trpg-copy-helper:settings:v1";
+const COPY_FONT_SIZE_KEY = "trpg-copy-helper:copy-font-size:v1";
+const COPY_FONT_SIZES = [12, 14, 16, 18, 20, 22, 24];
 
 const state = {
+  copyFontSize: 16,
   activeMainTab: "input",
   activeInputSource: "textarea",
   textareaText: "",
@@ -34,6 +37,7 @@ const elements = {};
 document.addEventListener("DOMContentLoaded", () => {
   bindElements();
   loadSettings();
+  loadCopyFontSize();
   bindEvents();
   render();
 });
@@ -69,10 +73,15 @@ function bindElements() {
   elements.resetIndividualExclusionsButton = document.querySelector("#resetIndividualExclusionsButton");
   elements.copyEmpty = document.querySelector("#copyEmpty");
   elements.copyLines = document.querySelector("#copyLines");
+  elements.copyFontDecrease = document.querySelector("#copyFontDecrease");
+  elements.copyFontIncrease = document.querySelector("#copyFontIncrease");
+  elements.copyFontSize = document.querySelector("#copyFontSize");
   elements.toast = document.querySelector("#toast");
 }
 
 function bindEvents() {
+  elements.copyFontDecrease.addEventListener("click", () => changeCopyFontSize(-1));
+  elements.copyFontIncrease.addEventListener("click", () => changeCopyFontSize(1));
   elements.mainTabs.forEach((button) => {
     button.addEventListener("click", () => {
       state.activeMainTab = button.dataset.mainTab;
@@ -159,6 +168,34 @@ function bindEvents() {
   });
   window.addEventListener("resize", closeBreakMenu);
   document.addEventListener("scroll", closeBreakMenu, true);
+}
+
+function loadCopyFontSize() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COPY_FONT_SIZE_KEY));
+    state.copyFontSize = COPY_FONT_SIZES.includes(saved) ? saved : 16;
+  } catch {
+    state.copyFontSize = 16;
+  }
+}
+
+function changeCopyFontSize(direction) {
+  const index = COPY_FONT_SIZES.indexOf(state.copyFontSize);
+  const nextIndex = Math.max(0, Math.min(COPY_FONT_SIZES.length - 1, index + direction));
+  state.copyFontSize = COPY_FONT_SIZES[nextIndex];
+  renderCopyFontSize();
+  try {
+    localStorage.setItem(COPY_FONT_SIZE_KEY, JSON.stringify(state.copyFontSize));
+  } catch {
+    // Storage may be unavailable; keep the display setting for this session.
+  }
+}
+
+function renderCopyFontSize() {
+  elements.copyLines.style.setProperty("--copy-font-size", `${state.copyFontSize}px`);
+  elements.copyFontSize.textContent = `${state.copyFontSize}px`;
+  elements.copyFontDecrease.disabled = state.copyFontSize === COPY_FONT_SIZES[0];
+  elements.copyFontIncrease.disabled = state.copyFontSize === COPY_FONT_SIZES.at(-1);
 }
 
 function createRule() {
@@ -766,6 +803,7 @@ function createTextField({ label, value, placeholder, ruleId, field, singleLine 
 }
 
 function renderCopyPanel() {
+  renderCopyFontSize();
   renderIndividualExclusionSummary();
   if (state.activeMainTab !== "copy") {
     return;
