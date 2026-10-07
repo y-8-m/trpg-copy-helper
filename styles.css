@@ -651,3 +651,53 @@ main {
   opacity: 1;
   transform: translateY(0);
 }
+
+.line-boundary {
+  position: relative;
+  height: 6px;
+  background: #fbfdfb;
+  cursor: row-resize;
+  user-select: none;
+}
+
+.line-boundary:hover {
+  background: var(--accent-soft);
+  box-shadow: inset 0 1px var(--accent), inset 0 -1px var(--accent);
+}
+
+.line-boundary:hover::after {
+  content: "ダブルクリックで改行削除";
+  position: absolute;
+  right: 12px;
+  bottom: 6px;
+  z-index: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent-strong);
+  color: white;
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.break-menu {
+  position: fixed;
+  z-index: 20;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.break-menu button {
+  border: 0;
+  border-radius: 4px;
+  padding: 8px 14px;
+  background: var(--surface);
+  color: var(--accent-strong);
+}
+
+.break-menu button:hover,
+.break-menu button:focus-visible {
+  background: var(--accent-soft);
+}

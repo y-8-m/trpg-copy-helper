@@ -176,6 +176,16 @@
       return { ok: false };
     }
 
+    const insertedBreaks = value.insertedBreaks ?? [];
+    const removedLineBreaks = value.removedLineBreaks ?? [];
+    if (!Array.isArray(insertedBreaks) || !insertedBreaks.every((item) =>
+      isRecord(item) && /^line-\d+$/.test(item.lineId) &&
+      Number.isSafeInteger(item.offset) && item.offset >= 0) ||
+      !Array.isArray(removedLineBreaks) || !removedLineBreaks.every((id) =>
+        typeof id === "string" && /^line-\d+$/.test(id))) {
+      return { ok: false };
+    }
+
     const excludedMatches = [];
     for (const match of value.excludedMatches) {
       if (!isRecord(match)) {
@@ -207,6 +217,8 @@
         sourceFingerprint: value.sourceFingerprint,
         sourceName: typeof value.sourceName === "string" ? value.sourceName : undefined,
         excludedMatches,
+        insertedBreaks: insertedBreaks.map(({ lineId, offset }) => ({ lineId, offset })),
+        removedLineBreaks: [...removedLineBreaks],
       },
     };
   }

@@ -11,6 +11,9 @@ const state = {
   isAnalysisDirty: true,
   analysis: null,
   individualExclusions: new Set(),
+  lineBreaks: LineBreaks.emptyState(),
+  lineBreakSource: "",
+  displayLines: [],
   exportPresetName: "",
   exportIncludesIndividualState: false,
   settingsTransferMessage: "",
@@ -147,6 +150,15 @@ function bindEvents() {
   elements.copyLines.addEventListener("mousemove", handleCopyMouseMove);
   elements.copyLines.addEventListener("click", handleCopyClick);
   document.addEventListener("mouseup", handleDocumentMouseUp);
+  elements.copyLines.addEventListener("contextmenu", handleBreakContextMenu);
+  document.addEventListener("mousedown", (event) => {
+    if (!event.target.closest(".break-menu")) closeBreakMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeBreakMenu();
+  });
+  window.addEventListener("resize", closeBreakMenu);
+  document.addEventListener("scroll", closeBreakMenu, true);
 }
 
 function createRule() {
@@ -237,7 +249,7 @@ function handleFileChange(event) {
 }
 
 async function handleExportSettings() {
-  if (state.replacementRules.length === 0) {
+  if (state.replacementRules.length === 0 && !state.exportIncludesIndividualState) {
     setSettingsTransferMessage("置換ルールが登録されていません。", "error");
     showToast("置換ルールが登録されていません。");
     return;
@@ -280,14 +292,16 @@ async function handleExportSettings() {
 async function createExportedIndividualState() {
   ensureAnalysis();
   const normalizedSourceText = ReplacementSettingsIO.normalizeNewlines(getSourceText());
-  const sourceFingerprint = await ReplacementSettingsIO.createSourceFingerprint(normalizedSourceText);
+  const lineBreakState = structuredClone(state.lineBreaks);
   const sourceName =
     state.activeInputSource === "file" && state.loadedFile?.name ? state.loadedFile.name : undefined;
   const excludedMatches = collectExportedExcludedMatches();
+  const sourceFingerprint = await ReplacementSettingsIO.createSourceFingerprint(normalizedSourceText);
   return {
     sourceFingerprint,
     ...(sourceName ? { sourceName } : {}),
     excludedMatches,
+    ...lineBreakState,
   };
 }
 
@@ -404,11 +418,13 @@ async function applyPendingImport(mode) {
   }
 
   const pendingImport = state.pendingImport;
+  const importSource = getSourceText();
   const restoreStatus = await ReplacementSettingsIO.evaluateIndividualStateRestore({
     settings: pendingImport.settings,
-    sourceText: getSourceText(),
+    sourceText: importSource,
     mode,
   });
+  if (getSourceText() !== importSource || state.pendingImport !== pendingImport) return;
   const result = ReplacementSettingsIO.applyImportedRules({
     currentRules: state.replacementRules,
     importedRules: pendingImport.settings.rules,
@@ -430,7 +446,7 @@ async function applyPendingImport(mode) {
 
   if (mode === ReplacementSettingsIO.IMPORT_MODE_APPEND) {
     const message = `${result.addedCount}件を追加し、重複した${result.skippedCount}件をスキップしました。${
-      pendingImport.settings.individualState ? "\n個別除外状態は追加モードでは復元されません。" : ""
+      pendingImport.settings.individualState ? "\n本文固有状態（個別除外・改行編集）は追加モードでは復元されません。" : ""
     }`;
     setSettingsTransferMessage(message, "info");
     showToast(`${result.addedCount}件を追加しました`);
@@ -440,7 +456,7 @@ async function applyPendingImport(mode) {
 
   if (pendingImport.settings.individualState && !restoreStatus.canRestore) {
     setSettingsTransferMessage(
-      "置換ルールは読み込みましたが、\n個別除外状態は現在の本文と一致しないため復元できませんでした。",
+      "置換ルールは読み込みましたが、\n本文固有状態（個別除外・改行編集）は現在の本文と一致しないため復元できませんでした。",
       "info",
     );
     showToast("置換ルールを読み込みました");
@@ -449,7 +465,7 @@ async function applyPendingImport(mode) {
   }
 
   const message = pendingImport.settings.individualState
-    ? "置換ルールを読み込みました。\n個別除外状態はコピー画面で復元されます。"
+    ? "置換ルールを読み込みました。\n本文固有状態（個別除外・改行編集）はコピー画面で復元されます。"
     : "置換ルールを読み込みました。";
   setSettingsTransferMessage(message, "info");
   showToast("置換ルールを読み込みました");
@@ -612,16 +628,17 @@ function renderImportPreview() {
     createInlineDetail(`有効：${enabledCount}件`),
     createInlineDetail(`無効：${disabledCount}件`),
     createInlineDetail(`個別除外状態：${individualCount}件`),
+    createInlineDetail(`改行追加：${settings.individualState?.insertedBreaks?.length ?? 0}件 / 改行削除：${settings.individualState?.removedLineBreaks?.length ?? 0}件`),
   );
 
   const status = document.createElement("p");
   status.className = "settings-import-preview-status";
   if (!settings.individualState) {
-    status.textContent = "個別除外状態は含まれていません。";
+    status.textContent = "本文固有状態（個別除外・改行編集）は含まれていません。";
   } else if (restoreStatus.matchesSource) {
-    status.textContent = "現在の本文と一致しました。\n個別除外状態も復元できます。";
+    status.textContent = "現在の本文と一致しました。\n本文固有状態（個別除外・改行編集）も復元できます。";
   } else {
-    status.textContent = "現在の本文と一致しません。\n個別除外状態は復元されません。";
+    status.textContent = "現在の本文と一致しません。\n本文固有状態（個別除外・改行編集）は復元されません。";
   }
 
   const actions = document.createElement("div");
@@ -755,6 +772,7 @@ function renderCopyPanel() {
   }
 
   ensureAnalysis();
+  renderIndividualExclusionSummary();
   const text = getSourceText();
   if (text === "") {
     elements.copyStatus.textContent = "0行";
@@ -764,7 +782,12 @@ function renderCopyPanel() {
     return;
   }
 
-  const { lines } = state.analysis;
+  closeBreakMenu();
+  clearDragState();
+  const lines = LineBreaks.buildLines(state.analysis.lines.map((line) => ({
+    id: line.id, segments: buildRenderedLine(line).segments,
+  })), state.lineBreaks);
+  state.displayLines = lines;
   elements.copyStatus.textContent = `${lines.length}行`;
   elements.copyEmpty.classList.add("is-hidden");
   elements.copyLines.classList.remove("is-hidden");
@@ -772,6 +795,19 @@ function renderCopyPanel() {
 
   lines.forEach((line, index) => {
     elements.copyLines.append(createLineElement(line, index));
+    if (line.boundaryAfter) {
+      const boundary = document.createElement("div");
+      boundary.className = "line-boundary";
+      boundary.title = "ダブルクリックで改行削除";
+      boundary.setAttribute("aria-label", boundary.title);
+      boundary.addEventListener("mousedown", (event) => event.preventDefault());
+      boundary.addEventListener("dblclick", (event) => {
+        event.preventDefault();
+        LineBreaks.removeBreak(state.lineBreaks, line.boundaryAfter);
+        renderCopyPanel();
+      });
+      elements.copyLines.append(boundary);
+    }
   });
   updateDragSelectionClasses();
 }
@@ -794,10 +830,14 @@ function createLineElement(line, index) {
   const content = document.createElement("div");
   content.className = "line-content";
 
-  const rendered = buildRenderedLine(line);
+  const rendered = line;
   rendered.segments.forEach((segment) => {
     if (segment.type === "text") {
-      content.append(document.createTextNode(segment.text));
+      const span = document.createElement("span");
+      span.textContent = segment.text;
+      span.dataset.sourceLine = segment.lineId;
+      span.dataset.sourceOffset = String(segment.offset);
+      content.append(span);
       return;
     }
 
@@ -807,6 +847,8 @@ function createLineElement(line, index) {
     chip.textContent = segment.text;
     chip.title = segment.isExcluded ? "置換対象へ戻す" : "この箇所だけ置換しない";
     chip.dataset.matchId = segment.match.id;
+    chip.dataset.sourceLine = segment.lineId;
+    chip.dataset.sourceOffset = String(segment.offset);
     chip.addEventListener("mousedown", (event) => {
       event.stopPropagation();
     });
@@ -1047,6 +1089,10 @@ function applyPendingIndividualStateRestore() {
     analysis: state.analysis,
   });
   state.individualExclusions = result.ids;
+  state.lineBreaks = {
+    insertedBreaks: structuredClone(state.pendingIndividualStateRestore.insertedBreaks ?? []),
+    removedLineBreaks: [...(state.pendingIndividualStateRestore.removedLineBreaks ?? [])],
+  };
   state.pendingIndividualStateRestore = null;
 }
 
@@ -1134,11 +1180,11 @@ function handleResetIndividualExclusions() {
 }
 
 function copySingleLine(index) {
-  const line = state.analysis?.lines[index];
+  const line = state.displayLines[index];
   if (!line) {
     return;
   }
-  const text = buildRenderedLine(line).text;
+  const text = line.text;
   writeClipboard(text).then((success) => {
     if (!success) {
       showToast("コピーできませんでした");
@@ -1151,8 +1197,8 @@ function copySingleLine(index) {
 function copyLineRange(startIndex, endIndex) {
   const min = Math.min(startIndex, endIndex);
   const max = Math.max(startIndex, endIndex);
-  const lines = state.analysis?.lines.slice(min, max + 1) ?? [];
-  const text = lines.map((line) => buildRenderedLine(line).text).join("\n");
+  const lines = state.displayLines.slice(min, max + 1) ?? [];
+  const text = lines.map((line) => line.text).join("\n");
   writeClipboard(text).then((success) => {
     if (!success) {
       showToast("コピーできませんでした");
@@ -1199,6 +1245,11 @@ function showToast(message) {
 }
 
 function invalidateAnalysis({ resetExclusions, resetPendingRestore = resetExclusions }) {
+  const source = ReplacementSettingsIO.normalizeNewlines(getSourceText());
+  state.lineBreaks = LineBreaks.forSource(state.lineBreakSource, source, state.lineBreaks);
+  state.lineBreakSource = source;
+  closeBreakMenu();
+  state.displayLines = [];
   state.isAnalysisDirty = true;
   state.analysis = null;
   if (resetExclusions) {
@@ -1244,4 +1295,46 @@ function splitLines(text) {
 
 function countCharacters(text) {
   return Array.from(text).length;
+}
+
+
+function closeBreakMenu() {
+  document.querySelector(".break-menu")?.remove();
+}
+
+function handleBreakContextMenu(event) {
+  const content = event.target.closest(".line-content");
+  if (!content) return;
+  event.preventDefault();
+  closeBreakMenu();
+  const caret = document.caretPositionFromPoint?.(event.clientX, event.clientY);
+  const range = caret ? null : document.caretRangeFromPoint?.(event.clientX, event.clientY);
+  const node = caret?.offsetNode ?? range?.startContainer;
+  let offset = caret?.offset ?? range?.startOffset;
+  if (!node || node.nodeType !== Node.TEXT_NODE || !content.contains(node)) return;
+  const segment = node.parentElement.closest("[data-source-line]");
+  if (!segment) return;
+  // Do not split a surrogate pair or combining/emoji grapheme.
+  if (typeof Intl.Segmenter === "function") {
+    const boundaries = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(node.data)]
+      .map((item) => item.index).concat(node.data.length);
+    offset = boundaries.reduce((best, candidate) =>
+      Math.abs(candidate - offset) < Math.abs(best - offset) ? candidate : best, 0);
+  }
+  const position = { lineId: segment.dataset.sourceLine,
+    offset: Number(segment.dataset.sourceOffset) + offset };
+  const menu = document.createElement("div");
+  menu.className = "break-menu";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "ここで改行";
+  button.addEventListener("click", () => {
+    LineBreaks.insertBreak(state.lineBreaks, position);
+    renderCopyPanel();
+  });
+  menu.append(button);
+  document.body.append(menu);
+  menu.style.left = `${Math.max(0, Math.min(event.clientX, window.innerWidth - menu.offsetWidth))}px`;
+  menu.style.top = `${Math.max(0, Math.min(event.clientY, window.innerHeight - menu.offsetHeight))}px`;
+  button.focus();
 }
